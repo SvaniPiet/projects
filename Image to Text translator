@@ -1,0 +1,116 @@
+import cv2
+import pytesseract
+import pandas as pd
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog
+from googletrans import Translator
+from PIL import Image, ImageTk
+
+pytesseract.pytesseract.tesseract_cmd = "D:\\Documents\\Dell\\SupportAssist\\tesseract.exe"
+
+# Create a Tkinter GUI
+root = tk.Tk()
+root.title("Image Text translator")
+root.configure(bg="Lavender")  
+
+left_frame = tk.Frame(root, bg="LAVENDER")
+left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True, padx=10, pady=10)
+
+right_frame = tk.Frame(root, bg="LAVENDER")
+right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True, padx=10, pady=10)
+
+# Load Pokémon image
+pokemon_image = Image.open("image_15.jpg")  
+pokemon_image = pokemon_image.resize((100, 100), Image.BICUBIC)
+pokemon_image = ImageTk.PhotoImage(pokemon_image)
+pokemon_label = tk.Label(left_frame, image=pokemon_image, bg="LAVENDER")
+pokemon_label.pack(side=tk.TOP, pady=(10, 0))
+
+def load_image():
+    image_path = filedialog.askopenfilename(title="Select an image file", filetypes=[("Image files", "*.jpg;*.jpeg;*.png")])
+    image_label.config(text=image_path)
+    return image_path
+
+def translate_text(text, target_language):
+    translator = Translator()
+    result = translator.translate(text, dest=target_language)
+    return result.text
+
+def generate_translated_text(image_path, target_language):
+    # Load the image and pre-process it
+    image = cv2.imread(image_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+
+    # Extract text from the image using Tesseract OCR
+    custom_config = r'--oem 3 --psm 6'
+    text = pytesseract.image_to_string(thresh, config=custom_config)
+
+    # Replace newline characters with a space
+    text = text.replace('\n', ' ')
+
+    # Translate the extracted text using Google Translate API
+    translated_text = translate_text(text, target_language)
+
+    return translated_text
+
+# Define a function to display the extracted text
+def display_text():
+    image_path = image_label.cget("text")
+    if image_path:
+        # Pre-process the image to improve OCR accuracy
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+
+        # Use Tesseract OCR to extract text from the image
+        custom_config = r'--oem 3 --psm 6'
+        text = pytesseract.image_to_string(thresh, config=custom_config)
+
+        # Replace newline characters with a space
+        text = text.replace('\n', ' ')
+
+        # Create a Pandas DataFrame to store the extracted text
+        df = pd.DataFrame({'Text': [text]})
+
+        # Display the extracted text in a label
+        text_label.config(text=df.to_string(index=False, header=False, justify='all'))
+
+# Define a function to translate the extracted text
+def translate_text_button():
+    image_path = image_label.cget("text")
+    if image_path:
+        target_language = language_var.get()
+        translated_text = generate_translated_text(image_path, target_language)
+        df = pd.DataFrame({'Translated Text': [translated_text]})
+        translated_text_label.config(text=df.to_string(index=False, header=False, justify='all'))
+
+# Create GUI widgets
+image_label = tk.Label(left_frame, text="", font=("Times New Roman", 20))
+image_label.pack()
+
+load_button = tk.Button(left_frame, text="Load Image", command=load_image, font=("Times New Roman", 20), bg="white")
+load_button.pack()
+
+display_button = tk.Button(left_frame, text="Display Text", command=display_text, font=("Times New Roman", 20), bg="white")
+display_button.pack()
+
+text_label = tk.Label(left_frame, text="", font=("Times New Roman", 20), wraplength=400, justify='center')
+text_label.pack()
+
+language_var = tk.StringVar(root)
+language_var.set("Choose language") 
+
+language_label = tk.Label(right_frame, text="Target Language:", font=("Times New Roman", 20), bg="white")
+language_label.pack()
+
+language_menu = tk.OptionMenu(right_frame, language_var, "english",  "hindi","tamil", "German","French" ,"spanish","Russian" ,"Japanese")
+language_menu.config(font=("Times New Roman", 20), bg="white")
+language_menu.pack(pady=20)  
+translate_button = tk.Button(right_frame, text="Translate", command=translate_text_button, font=("Times New Roman", 20),bg="white")
+translate_button.pack()
+
+translated_text_label = tk.Label(right_frame, text="", font =("Times New Roman", 20), wraplength=400, justify='center')
+translated_text_label.pack()
+root.mainloop()
